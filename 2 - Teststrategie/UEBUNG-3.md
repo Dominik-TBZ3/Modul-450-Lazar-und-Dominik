@@ -93,3 +93,27 @@ jeden Fall durchgespielt. Startzustand ist immer der frische Programmstart.
 Zusammengezählt sind das 32 Testfälle, davon 15 mit einem Fehler. Sechs davon würden wir als kritisch einstufen, weil man
 damit Geld erzeugen, Geld von einem fremden Konto wegnehmen oder die App komplett abschiessen bzw. aufhängen kann.
 
+## 3. White-Box Testfälle
+
+Hier geht es darum, welche Methoden man sinnvoll direkt mit Unit-Tests anfassen kann. Alle Klassen liegen unter
+`src/main/java/ch/tbz/bank/software/`.
+
+| Methode | Warum interessant | Was wir testen würden |
+|---------|-------------------|-----------------------|
+| `Account.withdraw(double)` | Die einzige Methode mit `if/else` und Rückgabewert, also der klassische Kandidat für Branch Coverage | `amount < balance` gibt `true` und bucht ab, `amount == balance` als Grenzwert gibt `true` und Saldo 0, `amount > balance` gibt `false` und lässt den Saldo unverändert, negativer `amount` (deckt BB-23 auf), `amount = NaN` |
+| `Account.deposit(double)` | Nur eine Zeile, aber komplett ohne Validierung. Deckt BB-22, BB-25 und BB-26 ab | Positiver Betrag addiert korrekt, 0 ändert nichts, negativer Betrag müsste abgelehnt werden, dazu `NaN` und `Double.MAX_VALUE` |
+| `Account.getBalance()` | Der Prüfpunkt für alle anderen Tests | Direkt nach dem Konstruktor gleich dem Startsaldo, nach Buchungen der korrekte Wert |
+| `Counter.convertCurrency(double, Currency, Currency)` | Drei `if`-Bedingungen plus Fallback und 9 mögliche Währungskombinationen. Ideal für eine Entscheidungstabelle und Path Coverage | Alle 9 Kombinationen durchgehen. Die drei bekannten Wege müssen den Kurs anwenden, gleiche Währung darf den Betrag nicht verändern, und die restlichen Wege dürfen nicht einfach 1:1 durchlaufen (deckt BB-10 auf). Achtung: die Methode ist `private`, für den Test müsste sie mindestens package-private werden |
+| `Bank.getAccount(int)` | Schleife mit Abbruchbedingung und `null` als Rückgabewert | Konto existiert, Konto existiert nicht und muss `null` liefern, leere Bank ohne Konten, Nummer 0 und negative Nummer |
+| `Bank.createAccount(...)` und `Bank.getNumberOfAccounts()` | Zustand der internen Liste prüfen | Nach n Aufrufen sind n Konten drin, das zurückgegebene Konto ist auch in der Liste, Startsaldo und Währung stimmen |
+| `Bank.deleteAccount(Account)` | Verändert die Liste | Nach dem Löschen ist die Anzahl um 1 kleiner, `getAccount()` liefert für die Nummer `null`, dasselbe Konto zweimal löschen darf nicht knallen, dazu `null` als Parameter |
+| `Account`-Konstruktor mit `static int counter` | Der Zähler ist statisch und läuft über alle Instanzen hinweg weiter | Das erste Konto hat ID 1. Genau das ist aber ein Testproblem: sobald ein anderer Test vorher Konten anlegt, stimmen die IDs nicht mehr. Der Test hängt dann von der Ausführungsreihenfolge ab, was man eigentlich nie will |
+| `ExchangeRateOkhttp.getExchangeRate(String, String)` | Zugriff auf eine externe API, dazu ein `try/catch` mit zwei Rückgabewegen | Erfolgsfall gibt den Kurs zurück, Fehlerfall gibt 0.0 zurück. Ohne Mock hängt der Test am Internet und am API-Key, das gehört gemockt (Thema aus Kapitel 6) |
+| `Counter.getConfirmation()` | Nur zwei Ausgänge, `j` oder alles andere. Deckt BB-19 ab | `j` gibt `true`, `n` gibt `false`, grosses `J` gibt `true`, leere Eingabe darf nicht abstürzen. Braucht aber einen einspeisbaren `Scanner` |
+
+Nicht sinnvoll als Unit-Test testbar sind aktuell `Counter.chooseAccount()`, `Counter.editAccount(int)`,
+`Counter.deposit()`, `Counter.withdraw()` und `Counter.transfer()`. Die sitzen alle in einer `do/while(true)`-Schleife,
+lesen direkt vom `Scanner` auf `System.in` und schreiben direkt auf `System.out`. Man kann sie höchstens mit
+umgebogenen Streams testen, und das wird schnell unübersichtlich. Genau deshalb steht "UI von Logik trennen" unten bei
+den Verbesserungen.
+
