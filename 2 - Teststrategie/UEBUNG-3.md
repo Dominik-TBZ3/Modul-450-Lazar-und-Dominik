@@ -117,3 +117,79 @@ lesen direkt vom `Scanner` auf `System.in` und schreiben direkt auf `System.out`
 umgebogenen Streams testen, und das wird schnell unübersichtlich. Genau deshalb steht "UI von Logik trennen" unten bei
 den Verbesserungen.
 
+## 4. Was wir am Code verbessern würden
+
+**Absturzgefahr und Validierung**
+
+* `substring(0, 1)` wird an mehreren Stellen ohne Längenprüfung aufgerufen (`editAccount`, `getConfirmation`). Ein
+  `isEmpty()`-Check oder `startsWith()` reicht schon, damit die App bei einem versehentlichen Enter nicht stirbt.
+* Es fehlt jede Betragsprüfung. `deposit()` und `withdraw()` sollten `amount <= 0` ablehnen und mit
+  `Double.isFinite()` auch `NaN` und `Infinity` abfangen. Zusätzlich wäre ein Maximalbetrag sinnvoll.
+* `deposit()` gibt nichts zurück, `withdraw()` einen `boolean`. Das ist inkonsistent. Entweder beide mit Rückgabewert
+  oder beide werfen eine Exception.
+
+**Fachlogik**
+
+* Geld in `double` ist die falsche Wahl, das sieht man bei BB-28 direkt. Besser `BigDecimal` oder ganzzahlig in Rappen
+  als `long`.
+* Die Überweisung bucht in `transferAmount()` zuerst beim Sender ab und rechnet erst danach um und schreibt gut. Wenn
+  zwischendurch etwas schiefgeht, ist das Geld verschwunden. Das gehört in eine `transfer()`-Methode auf `Bank`, die
+  beide Buchungen zusammen macht, mit Rollback im Fehlerfall.
+* Wenn `convertCurrency()` keinen Kurs kennt, gibt es nur eine Meldung auf der Konsole und der Betrag wird 1:1 verbucht.
+  Da muss die Überweisung abbrechen und nicht weiterlaufen.
+* Die Kurse stehen als Konstanten in `convertCurrency()`, obwohl es mit `ExchangeRateOkhttp` schon eine Kursquelle im
+  Projekt gibt. Das sind zwei Wahrheiten im gleichen Programm, und die fest verdrahtete ist deutlich falscher.
+
+**Fehlerbehandlung**
+
+* Überall steht `catch (Exception e)` und danach wird mit `instanceof` geprüft, was es denn war. Besser gezielt
+  `NumberFormatException` und die eigene Exception in getrennten `catch`-Blöcken fangen. So wie es jetzt ist,
+  verschwinden echte Fehler unbemerkt, siehe BB-20.
+* Das Sammel-`catch` in `deposit()`, `withdraw()` und `transferAmount()` fängt auch die `NoSuchElementException`, die
+  am Ende des Eingabestroms kommt. Weil die Schleife danach einfach weiterläuft, hängt sich das Programm auf, siehe
+  BB-32. Dort gehört ein Abbruch hin, zum Beispiel über `sc.hasNextLine()` als Schleifenbedingung.
+* Der `InputMismatchException`-Zweig in `chooseAccount()` ist toter Code, weil nur `nextLine()` benutzt wird und das
+  diese Exception nie wirft.
+* `AccountExeption` ist falsch geschrieben, soll `AccountException` heissen, und ist eine nicht-statische innere Klasse
+  von `Counter`. Beides gehört korrigiert, am besten als eigene Datei.
+
+**Eingabeprüfung**
+
+* Das Regex im Hauptmenü ist `\d|a|e|w|q` in Kombination mit `find()`. Damit gilt jeder String als gültig, der irgendwo
+  einen dieser Buchstaben enthält. Richtig wäre `matches()` mit Ankern, also etwa `^(\d+|[aewq])$`.
+* Die Fehlermeldung im Hauptmenü nennt `"a", "e", "u" oder "q"`. Ein `u` gibt es im Menü aber nicht, das müsste `w`
+  heissen.
+* Beim Konto erstellen wird der Nachname gar nicht geprüft und eine unbekannte Währung wird still zu USD.
+
+**Struktur und Testbarkeit**
+
+* `Counter` macht alles gleichzeitig: Eingabe lesen, ausgeben und Fachlogik rechnen. Die Logik gehört nach `Bank` und
+  `Account`, die Konsole soll nur eine dünne Schicht obendrauf sein. Erst dann kann man vernünftige Unit-Tests
+  schreiben, ohne am `Scanner` herumzubasteln.
+* `System.out.println()` steckt mitten in der Logik, zum Beispiel in `Bank.deleteAccount()` und
+  `Bank.printAccountDetails()`. Methoden sollten Werte zurückgeben, das Ausgeben macht die UI.
+* Es gibt kein `src/test` und keine einzige Testklasse. JUnit 5 ins `pom.xml` und los.
+* `Account.counter` und `Counter.counterId` sind `static` und werden im Konstruktor hochgezählt. Bei `counterId` gehört
+  der Wert klar zur Instanz (`private final int`), bei `Account` sollte die Vergabe der IDs eigentlich in `Bank` liegen.
+* Das `Currency`-Enum steht am Ende von `Main.java`. Gehört in eine eigene Datei.
+* `Account.pseudoDeleteAccount()` wird nirgends aufgerufen, in `Bank.deleteAccount()` ist der Aufruf mit einer Notiz
+  auskommentiert. Entweder brauchen oder löschen.
+* In `Counter.createAccount()` ist `startBalance` immer 0.0 und wird nie abgefragt. Entweder abfragen oder weg damit.
+  Ausserdem hat die Methode ein `do/while(true)` mit `return` am Ende, die Schleife läuft also nie ein zweites Mal
+  durch, obwohl es nach einer Wiederholung aussieht.
+
+**Sicherheit**
+
+* Der API-Key steht als Klartext-String in `ExchangeRateOkhttp` und liegt damit im Git. Der gehört in eine
+  Konfigurationsdatei oder eine Umgebungsvariable.
+
+## 5. Was uns am meisten aufgefallen ist
+
+Die auffälligste Lücke ist nicht das Menü, sondern dass beim Betrag nie geprüft wird, ob die Zahl überhaupt Sinn macht.
+Mit einem Minuszeichen kann man Abheben und Einzahlen vertauschen und sich beliebig Geld gutschreiben, und über eine
+Überweisung mit negativem Betrag geht das sogar auf einem fremden Konto. Geprüft wird immer nur, ob sich die Eingabe in
+eine Zahl umwandeln lässt, aber nie, ob die Zahl fachlich erlaubt ist.
+
+Ausserdem hat sich gezeigt, wie stark die Testbarkeit von der Struktur abhängt. `Account` und `Bank` kann man direkt mit
+Unit-Tests anfassen, `Counter` praktisch nicht, weil Eingabe, Ausgabe und Logik dort in einer Endlosschleife
+zusammenhängen. Die meisten Fehler haben wir dann auch nur über Black-Box-Tests gefunden.
