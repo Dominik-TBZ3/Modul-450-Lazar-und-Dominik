@@ -8,16 +8,15 @@ Aufgabe: [UEBUNGEN.md aus dem M450-Repo](https://gitlab.com/ch-tbz-it/Stud/m450/
 
 Wir haben das [Maven-Projekt](https://gitlab.com/ch-tbz-it/Stud/m450/m450/-/blob/main/Unterlagen/teststrategie/bank-software-mvn.zip)
 genommen, damit man die JAR-Files nicht von Hand einbinden muss. Maven war bei uns nicht installiert, darum haben wir
-die beiden ZIPs `gson.zip` und `okhttp.zip` aus dem gleichen Ordner geholt und direkt mit `javac` kompiliert:
+die beiden ZIPs `gson.zip` und `okhttp.zip` aus dem gleichen Ordner geholt und direkt mit `javac` kompiliert.
+
+Die ganze Software liegt bei uns im Repo unter [bank-software/](bank-software/), damit man nichts mehr herunterladen
+muss. Zum Starten reicht ein Doppelklick auf `bank-software\start.cmd`. Das Skript stellt die Konsole auf UTF-8, kompiliert
+beim ersten Aufruf und startet dann die App. Von Hand sind das diese zwei Befehle:
 
 ```bash
-javac -encoding UTF-8 -d out -cp "libs/gson/*.jar;libs/okhttp/*.jar" src/main/java/ch/tbz/bank/software/*.java
-```
-
-Starten dann mit:
-
-```bash
-java -cp "out;libs/gson/*.jar;libs/okhttp/*.jar" ch.tbz.bank.software.Main
+javac -encoding UTF-8 -d out -cp "libs/gson/*;libs/okhttp/*" bank-software-mvn/src/main/java/ch/tbz/bank/software/*.java
+java -Dfile.encoding=UTF-8 -Dstdin.encoding=UTF-8 -cp "out;libs/gson/*;libs/okhttp/*" ch.tbz.bank.software.Main
 ```
 
 Läuft mit JDK 25 durch, obwohl im `pom.xml` Java 20 steht. Beim Start gibt es fünf vorbereitete Konten:
