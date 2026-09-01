@@ -33,9 +33,3 @@ Bei zwei Miettagen geht Tagespreis mal Miettage nicht immer auf:
 
 Der Tagespreis ist ein gerundeter Anzeigewert, der Gesamtpreis wird aus dem ungerundeten Betrag gerechnet. Für einen
 Kunden sieht das nach einem Rechenfehler aus.
-
-## Was wir bewusst nicht getestet haben
-
-Buchung, Zahlung, Registrierung und die Kontaktformulare. Das würde auf der Produktivseite echte Reservationen, echte
-Zahlungen und echte Personendaten erzeugen. Solche Fälle gehören in eine vollständige Teststrategie, brauchen aber eine
-eigene Testumgebung.

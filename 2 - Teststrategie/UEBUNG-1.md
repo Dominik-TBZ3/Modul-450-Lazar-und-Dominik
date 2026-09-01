@@ -52,13 +52,3 @@ Pro Klasse ein Repräsentant plus die Grenzwerte links und rechts jeder Klasseng
 
 Die Grenzwerte K-02, K-03, K-05, K-06, K-08 und K-10 sind die wichtigsten Fälle. Ein verwechseltes `<` und `<=` fällt
 nur dort auf, ein Test mit 17'500 und 22'500 allein findet so einen Fehler nie.
-
-## 3. Unklarheiten in der Beschreibung
-
-* **Bei genau 25'000 CHF steht nichts.** Der Wert liegt nicht "unter 25'000" und "darüber" trifft auch nicht zu. Das ist
-  K-09, dort können wir keinen Erwartungswert hinschreiben.
-* **Die Grenzen sind unterschiedlich formuliert**, einmal einschliessend und zweimal ausschliessend.
-* **Nach unten fehlt eine Grenze.** Gilt "kein Rabatt" auch bei 0 oder einem negativen Preis?
-* **"angemessen" und "möglich" sind keine Vorgaben.** Nur bei 8,5 % steht "zu gewähren". Fester Wert oder Maximum?
-* **Die Rundung ist nicht definiert.** K-06 ergibt exakt 18'600.0093 CHF. Wir runden auf Rappen, denkbar wären auch
-  5 Rappen oder ganze Franken.
