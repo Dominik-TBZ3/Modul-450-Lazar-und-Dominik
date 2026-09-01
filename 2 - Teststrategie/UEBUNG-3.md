@@ -119,14 +119,3 @@ den Verbesserungen.
 * **Es gibt keine Tests.** Kein `src/test`, keine Testklasse. JUnit 5 ins `pom.xml` und los.
 * **Der API-Key steht im Klartext** in `ExchangeRateOkhttp` und liegt damit im Git. Gehört in eine Konfigurationsdatei
   oder eine Umgebungsvariable.
-
-## 5. Was uns am meisten aufgefallen ist
-
-Die auffälligste Lücke ist nicht das Menü, sondern dass beim Betrag nie geprüft wird, ob die Zahl überhaupt Sinn macht.
-Mit einem Minuszeichen kann man Abheben und Einzahlen vertauschen und sich beliebig Geld gutschreiben, und über eine
-Überweisung mit negativem Betrag geht das sogar auf einem fremden Konto. Geprüft wird immer nur, ob sich die Eingabe in
-eine Zahl umwandeln lässt, aber nie, ob die Zahl fachlich erlaubt ist.
-
-Ausserdem hat sich gezeigt, wie stark die Testbarkeit von der Struktur abhängt. `Account` und `Bank` kann man direkt mit
-Unit-Tests anfassen, `Counter` praktisch nicht, weil Eingabe, Ausgabe und Logik dort in einer Endlosschleife
-zusammenhängen. Die meisten Fehler haben wir dann auch nur über Black-Box-Tests gefunden.
