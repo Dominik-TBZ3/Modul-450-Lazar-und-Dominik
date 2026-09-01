@@ -35,4 +35,4 @@ im Run-Fenster nicht.
 ## Achtung beim Testen
 
 * Ohne UTF-8-Konsole sind die Umlaute kaputt und die Taste `ü` (überweisen) geht nicht. `start.cmd` regelt das.
-* Ein leeres Enter im Konto-Menü lässt die App abstürzen. Das ist ein Fehler der Software (BB-18), nicht des Setups.
+* Ein leeres Enter im Konto-Menü lässt die App abstürzen. Das ist ein Fehler der Software (BB-10), nicht des Setups.

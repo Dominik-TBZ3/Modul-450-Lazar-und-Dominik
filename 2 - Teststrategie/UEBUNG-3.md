@@ -56,131 +56,69 @@ jeden Fall durchgespielt. Startzustand ist immer der frische Programmstart.
 
 | ID | Beschreibung | Eingabe | Erwartetes Resultat | Effektives Resultat | Status | Mögliche Ursache |
 |----|--------------|---------|---------------------|---------------------|--------|------------------|
-| BB-01 | Programm startet und zeigt das Hauptmenü | Programmstart | Menü erscheint, 5 Konten vorhanden | Wie erwartet, "Es gibt 5 Konten mit den Nummern 1-5" | OK | - |
-| BB-02 | Alle Konten anzeigen | `a` | Liste mit Nr., Nachname, Währung | Alle 5 Konten korrekt aufgelistet | OK | - |
-| BB-03 | Bestehendes Konto auswählen | `3` | Kontodetails von Musk | Nr. 3, Musk, 23500.00 CHF | OK | - |
-| BB-04 | Kontostand abfragen | `3`, `k` | Aktueller Kontostand | "Aktueller Kontostand: 23500.00 CHF" | OK | - |
-| BB-05 | Normal einzahlen | `4`, `e`, `250.25` | 100.50 + 250.25 = 350.75 EUR | 350.75 EUR | OK | - |
-| BB-06 | Normal abheben | `3`, `a`, `500` | 23500 - 500 = 23000 CHF | 23000.00 CHF | OK | - |
-| BB-07 | Genau den ganzen Kontostand abheben (Grenzwert) | `3`, `a`, `23500` | Geht durch, Saldo 0.00 | 0.00 CHF | OK | - |
-| BB-08 | Mehr abheben als vorhanden | `3`, `a`, `99999999` | Fehlermeldung, Saldo unverändert | "! Kontostand zu niedrig (momentan 23500.0 CHF)." | OK | - |
-| BB-09 | Überweisung USD auf CHF-Konto | `1`, `ü`, `3`, `100` | 100 USD abgebucht, Empfänger bekommt den umgerechneten Betrag | Sender 1400.00 USD, Empfänger 23611.00 CHF, also Kurs 1.11 | OK mit Vorbehalt | Der Kurs ist im Code fest verdrahtet. Die API im gleichen Programm sagt 1 CHF = 1.23 USD, also rund 0.81 CHF pro USD. Der verwendete Kurs ist völlig veraltet |
-| BB-10 | Überweisung EUR auf CHF-Konto | `2`, `ü`, `3`, `1000` | 1000 EUR werden in CHF umgerechnet | "! Es wurde keine Umrechnung vorgenommen", die 1000 werden 1:1 gutgeschrieben | Fehler | `convertCurrency()` kennt nur USD-CHF, USD-EUR und CHF-USD. Alles andere landet im Fallback und wird 1:1 verbucht, statt abzubrechen |
-| BB-11 | Überweisung auf das eigene Konto | `1`, `ü`, `1` | Fehlermeldung | "! Bitte ein anderes Konto als das momentane Konto auswählen!" | OK | - |
-| BB-12 | Neues Konto erstellen | `e`, `Meier`, `CHF` | Neues Konto mit Nr. 6 | Nr. 6, Meier, 0.00 CHF | OK mit Vorbehalt | Der Startsaldo kann nicht eingegeben werden, er ist immer 0.00 |
-| BB-13 | Konto mit unbekannter Währung erstellen | `e`, `Meier`, `ABC` | Nachfrage oder Abbruch | "! Die eingegebene Währung ist nicht bekannt, es wird USD verwendet.", Konto wird trotzdem angelegt | Fehler | Im `default`-Zweig wird still auf USD ausgewichen, statt nochmals zu fragen. Der Kunde bekommt ein Konto in einer Währung, die er nicht wollte |
-| BB-14 | Konto mit leerem Nachnamen erstellen | `e`, Enter, `CHF` | Fehlermeldung, nochmals fragen | Konto wird angelegt, in der Liste steht dann "Nr. 6:  (CHF)" | Fehler | Der Nachname wird überhaupt nicht validiert, geprüft wird nur die Währung |
-| BB-15 | Konto löschen und bestätigen | `4`, `l`, `j` | Konto ist weg | "Konto mit Nummer 4 wurde gelöscht.", Nr. 4 danach nicht mehr aufrufbar | OK | - |
-| BB-16 | Konto löschen und abbrechen | `4`, `l`, `n` | Konto bleibt bestehen | "! Aktion abgebrochen.", Konto 4 ist noch mit 100.50 EUR da | OK | - |
-| BB-17 | Nicht existierende Kontonummer | `99` | Fehlermeldung | "Ein Konto mit dieser Nummer ist nicht vorhanden!" | OK | - |
-| BB-18 | Leere Eingabe im Konto-Menü | `3`, dann nur Enter | Fehlermeldung, nochmals fragen | Absturz mit `StringIndexOutOfBoundsException: Range [0, 1) out of bounds for length 0` in `Counter.editAccount` | Fehler, kritisch | `input.substring(0,1)` wird ohne Längenprüfung aufgerufen. Bei leerer Eingabe knallt es und die ganze App ist weg |
-| BB-19 | Leere Eingabe bei der Lösch-Bestätigung | `4`, `l`, dann nur Enter | Als "nein" behandeln | Gleicher Absturz, diesmal in `Counter.getConfirmation` | Fehler, kritisch | Dasselbe `substring(0,1)`-Problem an einer zweiten Stelle |
-| BB-20 | Unsinn im Hauptmenü eingeben | `hallo` | "Ungültige Eingabe" | Gar keine Meldung, das Menü erscheint einfach wieder | Fehler | Das Regex `\d\|a\|e\|w\|q` sucht mit `find()` irgendwo im String. "hallo" enthält ein "a" und gilt damit als gültig. Danach scheitert `Integer.parseInt("hallo")` und die Exception wird still verschluckt |
-| BB-21 | Zahl und Buchstabe gemischt | `1a` | Konto 1 öffnen oder Fehlermeldung | Nichts, das Menü kommt ohne jeden Hinweis wieder | Fehler | Gleiche Ursache wie BB-20 |
-| BB-22 | Negativen Betrag einzahlen | `3`, `e`, `-5000` | Fehlermeldung, Saldo unverändert | Saldo geht von 23500.00 auf 18500.00 CHF | Fehler, kritisch | `Account.deposit()` addiert einfach, ohne den Betrag zu prüfen. Einzahlen wird so zum Abheben, und zwar ohne Deckungsprüfung |
-| BB-23 | Negativen Betrag abheben | `3`, `a`, `-5000` | Fehlermeldung, Saldo unverändert | Saldo geht von 23500.00 auf 28500.00 CHF | Fehler, kritisch | In `Account.withdraw()` ist `-5000 > balance` falsch, also wird `balance -= -5000` gerechnet. Geld aus dem Nichts |
-| BB-24 | Negativen Betrag überweisen | `2`, `ü`, `3`, `-999` | Fehlermeldung | Der Sender geht von 2000.00 auf 2999.00 EUR, der Empfänger verliert 999 | Fehler, kritisch | Kombination aus BB-22 und BB-23. Damit kann man fremde Konten leerräumen |
-| BB-25 | Text `NaN` als Betrag einzahlen | `3`, `e`, `NaN` | Fehlermeldung | "Aktueller Kontostand: NaN CHF", das Konto ist danach dauerhaft unbrauchbar | Fehler | `Double.parseDouble("NaN")` ist gültiges Java und liefert `Double.NaN`. Geprüft wird nur, ob sich die Eingabe parsen lässt, nicht ob eine sinnvolle Zahl herauskommt |
-| BB-26 | Extrem grosse Zahl einzahlen | `3`, `e`, `1e308`, dann nochmals `1e308` | Fehlermeldung oder Obergrenze | Zuerst eine 309-stellige Zahl, nach der zweiten Einzahlung "Kontostand: Infinity CHF" | Fehler | Es gibt keinen Maximalbetrag und `double` läuft in `Infinity` über |
-| BB-27 | 0 einzahlen | `3`, `e`, `0` | Hinweis, dass 0 keinen Sinn macht | Wird ohne Meldung akzeptiert, Saldo bleibt gleich | Kleiner Fehler | Keine Prüfung auf `amount <= 0`. Fachlich stört es nicht, ist aber eine sinnlose Buchung |
-| BB-28 | Rappen-Rundung | `3`, `e`, `0.005` | Entweder ablehnen oder korrekt runden | Die Anzeige springt auf 23500.01 CHF, intern liegen aber 23500.005 | Fehler | `printf("%.2f")` rundet nur die Anzeige. Intern wird mit `double` weitergerechnet, Anzeige und echter Saldo laufen auseinander |
-| BB-29 | Wechselkurs abfragen | `w`, `CHF USD` | Aktueller Kurs | "1 CHF = 1.230383 USD" | OK | - |
-| BB-30 | Wechselkurs mit unbekannter Währung | `w`, `XXX YYY` | Fehlermeldung, nochmals fragen | "! Ungültige Eingabe oder unbekannte Währung !", danach kommt die Abfrage wieder | OK | - |
-| BB-31 | Programm beenden | `q` | Programm endet | "Auf Wiedersehen!", das Programm ist beendet | OK | - |
-| BB-32 | Betragsabfrage offen lassen und die Eingabe beenden (Strg+Z bzw. EOF) | `3`, `e`, dann EOF | Programm bricht ab oder beendet sich | Endlosschleife, die "! Ungültige Eingabe, bitte nochmals!" so schnell rausschreibt, wie die Konsole mag. Wir haben in 10 Sekunden rund 1.6 Millionen Zeilen gemessen, dann mussten wir den Prozess abschiessen | Fehler, kritisch | Am Ende des Eingabestroms wirft `sc.nextLine()` eine `NoSuchElementException`. Die wird vom `catch (Exception e)` mitgefangen, die `do/while(true)`-Schleife läuft aber weiter und liest dieselbe leere Quelle nochmals. Dasselbe passiert, wenn man nach `q` (dort wird der Scanner geschlossen) noch weitertippen könnte |
+| BB-01 | Programm startet und zeigt alle Konten | Start, dann `a` | Menü erscheint, 5 Konten werden aufgelistet | "Es gibt 5 Konten mit den Nummern 1-5", Liste mit Nr., Nachname und Währung ist korrekt | OK | - |
+| BB-02 | Konto auswählen und Kontostand abfragen | `3`, `k` | Kontodetails und Kontostand von Musk | Nr. 3, Musk, "Aktueller Kontostand: 23500.00 CHF" | OK | - |
+| BB-03 | Normal einzahlen | `4`, `e`, `250.25` | 100.50 + 250.25 = 350.75 EUR | 350.75 EUR | OK | - |
+| BB-04 | Normal abheben | `3`, `a`, `500` | 23500 - 500 = 23000 CHF | 23000.00 CHF | OK | - |
+| BB-05 | Genau den ganzen Kontostand abheben (Grenzwert) | `3`, `a`, `23500` | Geht durch, Saldo 0.00 | 0.00 CHF | OK | - |
+| BB-06 | Mehr abheben als vorhanden | `3`, `a`, `99999999` | Fehlermeldung, Saldo unverändert | "! Kontostand zu niedrig (momentan 23500.0 CHF)." | OK | - |
+| BB-07 | Konto erstellen und wieder löschen | `e`, `Meier`, `CHF`, dann `6`, `l`, `j` | Konto Nr. 6 wird angelegt und danach gelöscht | Nr. 6 Meier 0.00 CHF, dann "Konto mit Nummer 6 wurde gelöscht.", Nr. 6 nicht mehr aufrufbar | OK mit Vorbehalt | Der Startsaldo kann nicht eingegeben werden, er ist immer 0.00 |
+| BB-08 | Wechselkurs abfragen | `w`, `CHF USD` | Aktueller Kurs von der API | "1 CHF = 1.230383 USD" | OK | - |
+| BB-09 | Überweisung EUR auf CHF-Konto | `2`, `ü`, `3`, `1000` | 1000 EUR werden in CHF umgerechnet | "! Es wurde keine Umrechnung vorgenommen", die 1000 werden 1:1 gutgeschrieben | Fehler | `convertCurrency()` kennt nur USD-CHF, USD-EUR und CHF-USD. Alles andere landet im Fallback und wird 1:1 verbucht, statt abzubrechen |
+| BB-10 | Leere Eingabe im Konto-Menü | `3`, dann nur Enter | Fehlermeldung, nochmals fragen | Absturz mit `StringIndexOutOfBoundsException: Range [0, 1) out of bounds for length 0` in `Counter.editAccount` | Fehler, kritisch | `input.substring(0,1)` wird ohne Längenprüfung aufgerufen. Bei leerer Eingabe knallt es und die ganze App ist weg. Dasselbe passiert bei der Lösch-Bestätigung |
+| BB-11 | Negativen Betrag einzahlen | `3`, `e`, `-5000` | Fehlermeldung, Saldo unverändert | Saldo geht von 23500.00 auf 18500.00 CHF | Fehler, kritisch | `Account.deposit()` addiert einfach, ohne den Betrag zu prüfen. Einzahlen wird so zum Abheben, und zwar ohne Deckungsprüfung |
+| BB-12 | Negativen Betrag abheben | `3`, `a`, `-5000` | Fehlermeldung, Saldo unverändert | Saldo geht von 23500.00 auf 28500.00 CHF | Fehler, kritisch | In `Account.withdraw()` ist `-5000 > balance` falsch, also wird `balance -= -5000` gerechnet. Geld aus dem Nichts |
+| BB-13 | Negativen Betrag überweisen | `2`, `ü`, `3`, `-999` | Fehlermeldung | Der Sender geht von 2000.00 auf 2999.00 EUR, der Empfänger verliert 999 | Fehler, kritisch | Kombination aus BB-11 und BB-12. Damit kann man fremde Konten leerräumen |
+| BB-14 | Text `NaN` als Betrag einzahlen | `3`, `e`, `NaN` | Fehlermeldung | "Aktueller Kontostand: NaN CHF", das Konto ist danach dauerhaft unbrauchbar | Fehler | `Double.parseDouble("NaN")` ist gültiges Java und liefert `Double.NaN`. Geprüft wird nur, ob sich die Eingabe parsen lässt, nicht ob eine sinnvolle Zahl herauskommt |
+| BB-15 | Betragsabfrage offen lassen und die Eingabe beenden (Strg+Z bzw. EOF) | `3`, `e`, dann EOF | Programm bricht ab oder beendet sich | Endlosschleife, die "! Ungültige Eingabe, bitte nochmals!" so schnell rausschreibt, wie die Konsole mag. Wir haben in 10 Sekunden rund 1.6 Millionen Zeilen gemessen, dann mussten wir den Prozess abschiessen | Fehler, kritisch | Am Ende des Eingabestroms wirft `sc.nextLine()` eine `NoSuchElementException`. Die wird vom `catch (Exception e)` mitgefangen, die `do/while(true)`-Schleife läuft aber weiter und liest dieselbe leere Quelle nochmals |
 
-Zusammengezählt sind das 32 Testfälle, davon 15 mit einem Fehler. Sechs davon würden wir als kritisch einstufen, weil man
-damit Geld erzeugen, Geld von einem fremden Konto wegnehmen oder die App komplett abschiessen bzw. aufhängen kann.
+Von den 15 Testfällen sind 7 fehlerhaft, 5 davon würden wir als kritisch einstufen, weil man damit Geld erzeugen, Geld
+von einem fremden Konto wegnehmen oder die App abschiessen bzw. aufhängen kann.
+
+Nebenbei aufgefallen, ohne eigenen Testfall: eine unbekannte Währung wie `ABC` wird beim Konto erstellen still zu USD,
+der Nachname darf leer bleiben, `0.005` einzahlen zeigt 23500.01 an obwohl intern 23500.005 liegen, und Unsinn wie
+`hallo` im Hauptmenü bringt gar keine Fehlermeldung.
 
 ## 3. White-Box Testfälle
 
 Hier geht es darum, welche Methoden man sinnvoll direkt mit Unit-Tests anfassen kann. Alle Klassen liegen unter
-`src/main/java/ch/tbz/bank/software/`.
+`bank-software/bank-software-mvn/src/main/java/ch/tbz/bank/software/`.
 
 | Methode | Warum interessant | Was wir testen würden |
 |---------|-------------------|-----------------------|
-| `Account.withdraw(double)` | Die einzige Methode mit `if/else` und Rückgabewert, also der klassische Kandidat für Branch Coverage | `amount < balance` gibt `true` und bucht ab, `amount == balance` als Grenzwert gibt `true` und Saldo 0, `amount > balance` gibt `false` und lässt den Saldo unverändert, negativer `amount` (deckt BB-23 auf), `amount = NaN` |
-| `Account.deposit(double)` | Nur eine Zeile, aber komplett ohne Validierung. Deckt BB-22, BB-25 und BB-26 ab | Positiver Betrag addiert korrekt, 0 ändert nichts, negativer Betrag müsste abgelehnt werden, dazu `NaN` und `Double.MAX_VALUE` |
-| `Account.getBalance()` | Der Prüfpunkt für alle anderen Tests | Direkt nach dem Konstruktor gleich dem Startsaldo, nach Buchungen der korrekte Wert |
-| `Counter.convertCurrency(double, Currency, Currency)` | Drei `if`-Bedingungen plus Fallback und 9 mögliche Währungskombinationen. Ideal für eine Entscheidungstabelle und Path Coverage | Alle 9 Kombinationen durchgehen. Die drei bekannten Wege müssen den Kurs anwenden, gleiche Währung darf den Betrag nicht verändern, und die restlichen Wege dürfen nicht einfach 1:1 durchlaufen (deckt BB-10 auf). Achtung: die Methode ist `private`, für den Test müsste sie mindestens package-private werden |
-| `Bank.getAccount(int)` | Schleife mit Abbruchbedingung und `null` als Rückgabewert | Konto existiert, Konto existiert nicht und muss `null` liefern, leere Bank ohne Konten, Nummer 0 und negative Nummer |
-| `Bank.createAccount(...)` und `Bank.getNumberOfAccounts()` | Zustand der internen Liste prüfen | Nach n Aufrufen sind n Konten drin, das zurückgegebene Konto ist auch in der Liste, Startsaldo und Währung stimmen |
-| `Bank.deleteAccount(Account)` | Verändert die Liste | Nach dem Löschen ist die Anzahl um 1 kleiner, `getAccount()` liefert für die Nummer `null`, dasselbe Konto zweimal löschen darf nicht knallen, dazu `null` als Parameter |
-| `Account`-Konstruktor mit `static int counter` | Der Zähler ist statisch und läuft über alle Instanzen hinweg weiter | Das erste Konto hat ID 1. Genau das ist aber ein Testproblem: sobald ein anderer Test vorher Konten anlegt, stimmen die IDs nicht mehr. Der Test hängt dann von der Ausführungsreihenfolge ab, was man eigentlich nie will |
+| `Account.withdraw(double)` | Die einzige Methode mit `if/else` und Rückgabewert, also der klassische Kandidat für Branch Coverage | `amount < balance` gibt `true` und bucht ab, `amount == balance` als Grenzwert gibt `true` und Saldo 0, `amount > balance` gibt `false` und lässt den Saldo unverändert, dazu ein negativer `amount` (deckt BB-12 auf) |
+| `Account.deposit(double)` | Nur eine Zeile, aber komplett ohne Validierung. Deckt BB-11 und BB-14 ab | Positiver Betrag addiert korrekt, 0 ändert nichts, negativer Betrag müsste abgelehnt werden, dazu `NaN` und `Double.MAX_VALUE` |
+| `Counter.convertCurrency(double, Currency, Currency)` | Drei `if`-Bedingungen plus Fallback und 9 mögliche Währungskombinationen. Ideal für eine Entscheidungstabelle und Path Coverage | Alle 9 Kombinationen durchgehen. Die drei bekannten Wege müssen den Kurs anwenden, gleiche Währung darf den Betrag nicht verändern, und die restlichen Wege dürfen nicht einfach 1:1 durchlaufen (deckt BB-09 auf). Achtung: die Methode ist `private`, für den Test müsste sie mindestens package-private werden |
+| `Bank.getAccount(int)` | Schleife mit Abbruchbedingung und `null` als Rückgabewert | Konto existiert, Konto existiert nicht und muss `null` liefern, leere Bank ohne Konten, dazu Nummer 0 und eine negative Nummer |
 | `ExchangeRateOkhttp.getExchangeRate(String, String)` | Zugriff auf eine externe API, dazu ein `try/catch` mit zwei Rückgabewegen | Erfolgsfall gibt den Kurs zurück, Fehlerfall gibt 0.0 zurück. Ohne Mock hängt der Test am Internet und am API-Key, das gehört gemockt (Thema aus Kapitel 6) |
-| `Counter.getConfirmation()` | Nur zwei Ausgänge, `j` oder alles andere. Deckt BB-19 ab | `j` gibt `true`, `n` gibt `false`, grosses `J` gibt `true`, leere Eingabe darf nicht abstürzen. Braucht aber einen einspeisbaren `Scanner` |
 
-Nicht sinnvoll als Unit-Test testbar sind aktuell `Counter.chooseAccount()`, `Counter.editAccount(int)`,
-`Counter.deposit()`, `Counter.withdraw()` und `Counter.transfer()`. Die sitzen alle in einer `do/while(true)`-Schleife,
-lesen direkt vom `Scanner` auf `System.in` und schreiben direkt auf `System.out`. Man kann sie höchstens mit
-umgebogenen Streams testen, und das wird schnell unübersichtlich. Genau deshalb steht "UI von Logik trennen" unten bei
+Nicht sinnvoll als Unit-Test testbar sind aktuell `Counter.chooseAccount()`, `Counter.editAccount(int)` und die
+privaten Ein- und Auszahlungsmethoden in `Counter`. Die sitzen alle in einer `do/while(true)`-Schleife, lesen direkt vom
+`Scanner` auf `System.in` und schreiben direkt auf `System.out`. Genau deshalb steht "UI von Logik trennen" unten bei
 den Verbesserungen.
 
 ## 4. Was wir am Code verbessern würden
 
-**Absturzgefahr und Validierung**
-
-* `substring(0, 1)` wird an mehreren Stellen ohne Längenprüfung aufgerufen (`editAccount`, `getConfirmation`). Ein
-  `isEmpty()`-Check oder `startsWith()` reicht schon, damit die App bei einem versehentlichen Enter nicht stirbt.
-* Es fehlt jede Betragsprüfung. `deposit()` und `withdraw()` sollten `amount <= 0` ablehnen und mit
-  `Double.isFinite()` auch `NaN` und `Infinity` abfangen. Zusätzlich wäre ein Maximalbetrag sinnvoll.
-* `deposit()` gibt nichts zurück, `withdraw()` einen `boolean`. Das ist inkonsistent. Entweder beide mit Rückgabewert
-  oder beide werfen eine Exception.
-
-**Fachlogik**
-
-* Geld in `double` ist die falsche Wahl, das sieht man bei BB-28 direkt. Besser `BigDecimal` oder ganzzahlig in Rappen
-  als `long`.
-* Die Überweisung bucht in `transferAmount()` zuerst beim Sender ab und rechnet erst danach um und schreibt gut. Wenn
-  zwischendurch etwas schiefgeht, ist das Geld verschwunden. Das gehört in eine `transfer()`-Methode auf `Bank`, die
-  beide Buchungen zusammen macht, mit Rollback im Fehlerfall.
-* Wenn `convertCurrency()` keinen Kurs kennt, gibt es nur eine Meldung auf der Konsole und der Betrag wird 1:1 verbucht.
-  Da muss die Überweisung abbrechen und nicht weiterlaufen.
-* Die Kurse stehen als Konstanten in `convertCurrency()`, obwohl es mit `ExchangeRateOkhttp` schon eine Kursquelle im
-  Projekt gibt. Das sind zwei Wahrheiten im gleichen Programm, und die fest verdrahtete ist deutlich falscher.
-
-**Fehlerbehandlung**
-
-* Überall steht `catch (Exception e)` und danach wird mit `instanceof` geprüft, was es denn war. Besser gezielt
-  `NumberFormatException` und die eigene Exception in getrennten `catch`-Blöcken fangen. So wie es jetzt ist,
-  verschwinden echte Fehler unbemerkt, siehe BB-20.
-* Das Sammel-`catch` in `deposit()`, `withdraw()` und `transferAmount()` fängt auch die `NoSuchElementException`, die
-  am Ende des Eingabestroms kommt. Weil die Schleife danach einfach weiterläuft, hängt sich das Programm auf, siehe
-  BB-32. Dort gehört ein Abbruch hin, zum Beispiel über `sc.hasNextLine()` als Schleifenbedingung.
-* Der `InputMismatchException`-Zweig in `chooseAccount()` ist toter Code, weil nur `nextLine()` benutzt wird und das
-  diese Exception nie wirft.
-* `AccountExeption` ist falsch geschrieben, soll `AccountException` heissen, und ist eine nicht-statische innere Klasse
-  von `Counter`. Beides gehört korrigiert, am besten als eigene Datei.
-
-**Eingabeprüfung**
-
-* Das Regex im Hauptmenü ist `\d|a|e|w|q` in Kombination mit `find()`. Damit gilt jeder String als gültig, der irgendwo
-  einen dieser Buchstaben enthält. Richtig wäre `matches()` mit Ankern, also etwa `^(\d+|[aewq])$`.
-* Die Fehlermeldung im Hauptmenü nennt `"a", "e", "u" oder "q"`. Ein `u` gibt es im Menü aber nicht, das müsste `w`
-  heissen.
-* Beim Konto erstellen wird der Nachname gar nicht geprüft und eine unbekannte Währung wird still zu USD.
-
-**Struktur und Testbarkeit**
-
-* `Counter` macht alles gleichzeitig: Eingabe lesen, ausgeben und Fachlogik rechnen. Die Logik gehört nach `Bank` und
-  `Account`, die Konsole soll nur eine dünne Schicht obendrauf sein. Erst dann kann man vernünftige Unit-Tests
-  schreiben, ohne am `Scanner` herumzubasteln.
-* `System.out.println()` steckt mitten in der Logik, zum Beispiel in `Bank.deleteAccount()` und
-  `Bank.printAccountDetails()`. Methoden sollten Werte zurückgeben, das Ausgeben macht die UI.
-* Es gibt kein `src/test` und keine einzige Testklasse. JUnit 5 ins `pom.xml` und los.
-* `Account.counter` und `Counter.counterId` sind `static` und werden im Konstruktor hochgezählt. Bei `counterId` gehört
-  der Wert klar zur Instanz (`private final int`), bei `Account` sollte die Vergabe der IDs eigentlich in `Bank` liegen.
-* Das `Currency`-Enum steht am Ende von `Main.java`. Gehört in eine eigene Datei.
-* `Account.pseudoDeleteAccount()` wird nirgends aufgerufen, in `Bank.deleteAccount()` ist der Aufruf mit einer Notiz
-  auskommentiert. Entweder brauchen oder löschen.
-* In `Counter.createAccount()` ist `startBalance` immer 0.0 und wird nie abgefragt. Entweder abfragen oder weg damit.
-  Ausserdem hat die Methode ein `do/while(true)` mit `return` am Ende, die Schleife läuft also nie ein zweites Mal
-  durch, obwohl es nach einer Wiederholung aussieht.
-
-**Sicherheit**
-
-* Der API-Key steht als Klartext-String in `ExchangeRateOkhttp` und liegt damit im Git. Der gehört in eine
-  Konfigurationsdatei oder eine Umgebungsvariable.
+* **Betrag-Validierung fehlt komplett.** `deposit()` und `withdraw()` sollten `amount <= 0` ablehnen und mit
+  `Double.isFinite()` auch `NaN` und `Infinity` abfangen. Das allein würde vier der fünf kritischen Fehler erledigen.
+* **`substring(0, 1)` ohne Längenprüfung** in `editAccount()` und `getConfirmation()`. Ein `isEmpty()`-Check reicht,
+  damit die App bei einem versehentlichen Enter nicht abstürzt.
+* **Sammel-`catch (Exception e)` überall**, danach wird mit `instanceof` geprüft, was es war. Besser gezielt
+  `NumberFormatException` fangen. So wie es jetzt ist verschwinden echte Fehler unbemerkt, und die
+  `NoSuchElementException` am Ende des Eingabestroms führt in die Endlosschleife aus BB-15.
+* **Geld in `double`** ist die falsche Wahl, weil Anzeige und interner Wert auseinanderlaufen. Besser `BigDecimal` oder
+  ganzzahlig in Rappen als `long`.
+* **Die Überweisung ist nicht atomar.** `transferAmount()` bucht zuerst beim Sender ab und rechnet erst danach um. Das
+  gehört in eine `transfer()`-Methode auf `Bank`, die beide Buchungen zusammen macht und bei unbekanntem Kurs abbricht
+  statt 1:1 zu verbuchen.
+* **UI und Logik sind vermischt.** `Counter` liest Eingaben, gibt aus und rechnet die Fachlogik. Die Logik gehört nach
+  `Bank` und `Account`, die Konsole soll nur eine dünne Schicht sein. Erst dann kann man vernünftig Unit-Tests
+  schreiben.
+* **Das Regex im Hauptmenü** ist `\d|a|e|w|q` mit `find()`, damit gilt jeder String als gültig, der irgendwo einen
+  dieser Buchstaben enthält. Richtig wäre `matches()` mit Ankern.
+* **Es gibt keine Tests.** Kein `src/test`, keine Testklasse. JUnit 5 ins `pom.xml` und los.
+* **Der API-Key steht im Klartext** in `ExchangeRateOkhttp` und liegt damit im Git. Gehört in eine Konfigurationsdatei
+  oder eine Umgebungsvariable.
 
 ## 5. Was uns am meisten aufgefallen ist
 
